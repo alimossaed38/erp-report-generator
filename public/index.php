@@ -48,5 +48,9 @@ $router->add('/sales', [SalesController::class, 'index']);
 $router->add('/inventory', [InventoryController::class, 'index']);
 $router->add('/finance', [FinanceController::class, 'index']);
 $router->add('/export', [ExportController::class, 'index']);
+$router->add('/customers', [CustomersController::class, 'index']);
+$router->add('/customers/view', [CustomersController::class, 'view']);
+$router->add('/products/view', [ProductController::class, 'view']);
+$router->add('/invoices/view', [InvoiceController::class, 'view']);
 
 $router->dispatch($_SERVER['REQUEST_URI'] ?? '/');

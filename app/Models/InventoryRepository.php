@@ -144,4 +144,80 @@ final class InventoryRepository
         $stmt->execute();
         return $stmt->fetchAll();
     }
+
+    public function productByIdWithStats(int $id): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM products WHERE id = :id');
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+        $product = $stmt->fetch();
+
+        if (!$product) {
+            return null;
+        }
+
+        $statsStmt = $this->db->prepare(
+            'SELECT COALESCE(SUM(qty), 0) sold_qty, COALESCE(SUM(line_total), 0) revenue
+             FROM sales_items
+             WHERE product_id = :id'
+        );
+        $statsStmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $statsStmt->execute();
+        $stats = $statsStmt->fetch();
+
+        $soldQty = (int) $stats['sold_qty'];
+        $revenue = (float) $stats['revenue'];
+        $cogs = $soldQty * (float) $product['cost'];
+        $profit = $revenue - $cogs;
+        $marginPct = abs($revenue) < 0.00001 ? null : ($profit / $revenue) * 100;
+
+        $product['sold_qty'] = $soldQty;
+        $product['revenue'] = $revenue;
+        $product['cogs'] = $cogs;
+        $product['profit'] = $profit;
+        $product['margin_pct'] = $marginPct;
+        $product['low'] = (int) $product['stock_qty'] <= (int) $product['reorder_level'];
+        $product['out'] = (int) $product['stock_qty'] === 0;
+
+        return $product;
+    }
+
+    public function productSalesMonthly(int $id): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT substr(i.invoice_date, 1, 7) ym, SUM(si.qty) qty, SUM(si.line_total) revenue
+             FROM sales_items si
+             JOIN sales_invoices i ON i.id = si.invoice_id
+             WHERE si.product_id = :id
+             GROUP BY ym ORDER BY ym'
+        );
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(static fn(array $row): array => [
+            'ym' => $row['ym'],
+            'qty' => (int) $row['qty'],
+            'revenue' => (float) $row['revenue'],
+        ], $stmt->fetchAll());
+    }
+
+    public function productInvoices(int $id): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT i.invoice_no invoice_no, i.invoice_date invoice_date, si.qty qty, si.line_total line_total
+             FROM sales_items si
+             JOIN sales_invoices i ON i.id = si.invoice_id
+             WHERE si.product_id = :id
+             ORDER BY i.invoice_date DESC, i.id DESC'
+        );
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(static fn(array $row): array => [
+            'invoice_no' => $row['invoice_no'],
+            'invoice_date' => $row['invoice_date'],
+            'qty' => (int) $row['qty'],
+            'line_total' => (float) $row['line_total'],
+        ], $stmt->fetchAll());
+    }
 }

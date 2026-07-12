@@ -276,4 +276,163 @@ final class SalesRepository
             return $row;
         }, $stmt->fetchAll());
     }
+
+    public function customerReport(
+        ?string $from,
+        ?string $to,
+        ?string $search,
+        int $page,
+        int $perPage,
+        string $sort = 'revenue',
+        string $direction = 'desc'
+    ): array {
+        [$where, $params] = $this->filters($from, $to, $search);
+        $sortMap = [
+            'revenue' => 'revenue',
+            'invoices' => 'invoices',
+            'last_purchase' => 'last_purchase',
+            'customer_name' => 'customer_name',
+        ];
+        $orderBy = $sortMap[$sort] ?? 'revenue';
+        $direction = strtolower($direction) === 'asc' ? 'ASC' : 'DESC';
+
+        $count = $this->db->prepare("SELECT COUNT(DISTINCT customer_name) FROM sales_invoices$where");
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+        $meta = Report::pagination($total, $page, $perPage);
+        $offset = ($meta['page'] - 1) * $perPage;
+
+        $stmt = $this->db->prepare(
+            "SELECT customer_name,
+                    COUNT(*) invoices,
+                    COALESCE(SUM(total), 0) revenue,
+                    COALESCE(AVG(total), 0) avg,
+                    MAX(invoice_date) last_purchase,
+                    COALESCE(SUM(total - amount_paid), 0) outstanding
+             FROM sales_invoices$where
+             GROUP BY customer_name
+             ORDER BY $orderBy $direction, customer_name ASC
+             LIMIT :limit OFFSET :offset"
+        );
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        $rows = array_map(static fn(array $row): array => [
+            'customer_name' => $row['customer_name'],
+            'invoices' => (int) $row['invoices'],
+            'revenue' => (float) $row['revenue'],
+            'avg' => (float) $row['avg'],
+            'last_purchase' => $row['last_purchase'],
+            'outstanding' => round((float) $row['outstanding'], 2),
+        ], $stmt->fetchAll());
+
+        return ['rows' => $rows, 'pagination' => $meta];
+    }
+
+    public function customerDetail(string $name): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) invoices,
+                    COALESCE(SUM(total), 0) revenue,
+                    COALESCE(AVG(total), 0) avg,
+                    MIN(invoice_date) first_purchase,
+                    MAX(invoice_date) last_purchase,
+                    COALESCE(SUM(total - amount_paid), 0) outstanding
+             FROM sales_invoices
+             WHERE customer_name = :name"
+        );
+        $stmt->bindValue(':name', $name);
+        $stmt->execute();
+        $row = $stmt->fetch();
+
+        if (!$row || (int) $row['invoices'] === 0) {
+            return null;
+        }
+
+        return [
+            'customer_name' => $name,
+            'invoices' => (int) $row['invoices'],
+            'revenue' => (float) $row['revenue'],
+            'avg' => (float) $row['avg'],
+            'first_purchase' => $row['first_purchase'],
+            'last_purchase' => $row['last_purchase'],
+            'outstanding' => round((float) $row['outstanding'], 2),
+        ];
+    }
+
+    public function customerInvoices(string $name): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT invoice_no, invoice_date, due_date, total, amount_paid
+             FROM sales_invoices
+             WHERE customer_name = :name
+             ORDER BY invoice_date DESC, id DESC"
+        );
+        $stmt->bindValue(':name', $name);
+        $stmt->execute();
+
+        return array_map([self::class, 'withPaymentStatus'], $stmt->fetchAll());
+    }
+
+    public function customerMonthly(string $name): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT substr(invoice_date, 1, 7) ym, SUM(total) total
+             FROM sales_invoices
+             WHERE customer_name = :name
+             GROUP BY ym ORDER BY ym"
+        );
+        $stmt->bindValue(':name', $name);
+        $stmt->execute();
+
+        return array_map(static fn(array $row): array => [
+            'ym' => $row['ym'],
+            'total' => (float) $row['total'],
+        ], $stmt->fetchAll());
+    }
+
+    public function invoiceByNo(string $no): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id, invoice_no, customer_name, invoice_date, due_date, total, amount_paid
+             FROM sales_invoices
+             WHERE invoice_no = :no"
+        );
+        $stmt->bindValue(':no', $no);
+        $stmt->execute();
+        $row = $stmt->fetch();
+
+        if (!$row) {
+            return null;
+        }
+
+        $row = self::withPaymentStatus($row);
+        $row['id'] = (int) $row['id'];
+
+        return $row;
+    }
+
+    public function invoiceItems(int $invoiceId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT p.name name, si.qty qty, si.unit_price unit_price, si.line_total line_total
+             FROM sales_items si
+             JOIN products p ON p.id = si.product_id
+             WHERE si.invoice_id = :id
+             ORDER BY si.id ASC"
+        );
+        $stmt->bindValue(':id', $invoiceId, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(static fn(array $row): array => [
+            'name' => $row['name'],
+            'qty' => (int) $row['qty'],
+            'unit_price' => (float) $row['unit_price'],
+            'line_total' => (float) $row['line_total'],
+        ], $stmt->fetchAll());
+    }
 }
