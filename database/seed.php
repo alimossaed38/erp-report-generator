@@ -1,11 +1,15 @@
 <?php
 require __DIR__ . '/../app/Core/Database.php';
+require __DIR__ . '/../app/Core/Config.php';
 
 $dbPath = __DIR__ . '/erp.sqlite';
 if (is_file($dbPath)) { unlink($dbPath); }
 
 $db = Database::connection();
 $db->exec(file_get_contents(__DIR__ . '/schema.sql'));
+
+// Net payment terms (days) — configurable via config/app.php.
+$netTermsDays = (int) Config::get('net_terms_days', 30);
 
 // Deterministic pseudo-random (LCG) — stable across runs.
 $state = 12345;
@@ -53,7 +57,7 @@ for ($m = 0; $m < 12; $m++) {
         $day = str_pad((string) $rand(1, 28), 2, '0', STR_PAD_LEFT);
         $mm = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
         $date = "$year-$mm-$day";
-        $dueDate = (new DateTimeImmutable($date))->modify('+30 days')->format('Y-m-d');
+        $dueDate = (new DateTimeImmutable($date))->modify("+{$netTermsDays} days")->format('Y-m-d');
         $invStmt->execute(["INV-" . (++$invoiceNo), $customers[$rand(0, count($customers)-1)], $date, 0, $dueDate, 0]);
         $invId = (int) $db->lastInsertId();
         $lines = $rand(1, 5);

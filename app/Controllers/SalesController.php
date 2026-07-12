@@ -20,7 +20,8 @@ final class SalesController extends Controller
             : null;
         $bounds = $repo->dateBounds();
         $margin = $repo->marginSummary($from, $to, $search);
-        $target = Analytics::targetProgress($summary['total'], (new TargetRepository())->range($from, $to));
+        $rangeTarget = (new TargetRepository())->range($from, $to);
+        $target = Analytics::targetProgress($summary['total'], $rangeTarget > 0.0 ? $rangeTarget : null);
 
         $this->render('sales', [
             'title' => 'تحليل المبيعات',
