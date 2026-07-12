@@ -21,6 +21,7 @@ final class FinanceController extends Controller
             ? $repo->summary($previousFrom, $previousTo)
             : null;
         $bounds = $repo->dateBounds();
+        $monthlyMargin = (new SalesRepository())->monthlyMargin($from, $to);
 
         $this->render('finance', [
             'title' => 'التحليل المالي',
@@ -43,6 +44,7 @@ final class FinanceController extends Controller
             'expenses' => $repo->expenseByCategory($from, $to),
             'quickRanges' => Report::quickRanges($bounds['max']),
             'bounds' => $bounds,
+            'monthlyMargin' => $monthlyMargin,
         ]);
     }
 }
