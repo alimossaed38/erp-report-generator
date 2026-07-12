@@ -22,7 +22,10 @@ final class Analytics
                     }
                 }
             }
-            if ($priorIndex === null && $index - 12 >= 0) {
+            // Only fall back to a positional lookup when rows carry no 'ym' to align on.
+            // If 'ym' is present but the exact 12-months-prior month is absent (a data gap),
+            // YoY must stay null rather than compare against the wrong month.
+            if ($priorIndex === null && !isset($row['ym']) && $index - 12 >= 0) {
                 $priorIndex = $index - 12;
             }
             if ($priorIndex !== null) {

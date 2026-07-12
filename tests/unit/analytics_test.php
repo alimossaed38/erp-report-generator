@@ -19,6 +19,16 @@ assert(abs($a['current'] - 100.0) < 0.01, 'current bucket');
 assert(abs($a['d1_30'] - 50.0) < 0.01, 'd1_30 bucket');
 assert(abs($a['d90_plus'] - 25.0) < 0.01, 'd90_plus bucket');
 assert(abs(($a['current']+$a['d1_30']+$a['d31_60']+$a['d61_90']+$a['d90_plus']) - $a['total']) < 0.01, 'buckets sum to total');
+// YoY: full 14-month window (2024-01 .. 2025-02); 2025-02 aligns to 2024-02.
+$year = [];
+for ($i = 0; $i < 14; $i++) { $mm = str_pad((string)($i % 12 + 1), 2, '0', STR_PAD_LEFT); $yy = 2024 + intdiv($i, 12); $year[] = ['ym' => "$yy-$mm", 'v' => 100 + $i]; }
+$gy = Analytics::growth($year, 'v'); // index 13 = 2025-02 (v=113) vs 2024-02 (v=101)
+assert($gy[13]['ym'] === '2025-02' && $gy[13]['yoy'] !== null && abs($gy[13]['yoy'] - (12/101*100)) < 0.01, 'YoY 2025-02 vs 2024-02');
+// Data gap: remove 2024-02. Now 2025-02 has NO exact 12-month-prior row → yoy must be null (not a wrong-month fallback to index-12=2024-01).
+$gap = $year; unset($gap[1]); $gap = array_values($gap);
+$ggap = Analytics::growth($gap, 'v');
+$row2025_02 = null; foreach ($ggap as $r) { if ($r['ym'] === '2025-02') { $row2025_02 = $r; } }
+assert($row2025_02 !== null && $row2025_02['yoy'] === null, 'YoY null when exact 12-months-prior month is missing');
 $tp = Analytics::targetProgress(80.0, 100.0);
 assert(abs($tp['pct'] - 80.0) < 0.01 && $tp['met'] === false, 'target 80%');
 assert(Analytics::targetProgress(50.0, null)['pct'] === null, 'null target → null pct');
