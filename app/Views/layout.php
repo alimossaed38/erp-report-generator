@@ -7,6 +7,7 @@ $navItems = [
     'dashboard' => ['href' => '/', 'label' => 'لوحة المعلومات', 'icon' => 'dashboard'],
     'sales' => ['href' => '/sales', 'label' => 'المبيعات', 'icon' => 'sales'],
     'customers' => ['href' => '/customers', 'label' => 'العملاء', 'icon' => 'users'],
+    'aging' => ['href' => '/aging', 'label' => 'أعمار الذمم', 'icon' => 'receipt'],
     'inventory' => ['href' => '/inventory', 'label' => 'المخزون', 'icon' => 'inventory'],
     'finance' => ['href' => '/finance', 'label' => 'المالية', 'icon' => 'finance'],
 ];

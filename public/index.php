@@ -50,6 +50,7 @@ $router->add('/finance', [FinanceController::class, 'index']);
 $router->add('/export', [ExportController::class, 'index']);
 $router->add('/customers', [CustomersController::class, 'index']);
 $router->add('/customers/view', [CustomersController::class, 'view']);
+$router->add('/aging', [AgingController::class, 'index']);
 $router->add('/products/view', [ProductController::class, 'view']);
 $router->add('/invoices/view', [InvoiceController::class, 'view']);
 
