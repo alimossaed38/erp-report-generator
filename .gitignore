@@ -8,7 +8,7 @@ __pycache__/
 Thumbs.db
 
 # Test artifacts
-/tests/screenshots/
 node_modules/
+.playwright-mcp/
 
 .superpowers/
