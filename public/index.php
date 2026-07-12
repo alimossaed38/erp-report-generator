@@ -25,6 +25,8 @@ spl_autoload_register(function (string $class): void {
     }
 });
 
+require __DIR__ . '/../app/Core/Analytics.php';
+
 date_default_timezone_set((string) Config::get('timezone', 'UTC'));
 
 header('X-Content-Type-Options: nosniff');

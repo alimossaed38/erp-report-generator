@@ -121,7 +121,7 @@ final class SalesRepository
         $offset = ($meta['page'] - 1) * $perPage;
 
         $stmt = $this->db->prepare(
-            "SELECT invoice_no, customer_name, invoice_date, total
+            "SELECT invoice_no, customer_name, invoice_date, total, due_date, amount_paid
              FROM sales_invoices$where
              ORDER BY $orderBy $direction, id DESC
              LIMIT :limit OFFSET :offset"
@@ -133,7 +133,25 @@ final class SalesRepository
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
 
-        return ['rows' => $stmt->fetchAll(), 'pagination' => $meta];
+        $rows = array_map([self::class, 'withPaymentStatus'], $stmt->fetchAll());
+
+        return ['rows' => $rows, 'pagination' => $meta];
+    }
+
+    private static function withPaymentStatus(array $row): array
+    {
+        $total = (float) $row['total'];
+        $paid = (float) $row['amount_paid'];
+        $outstanding = round($total - $paid, 2);
+
+        $row['outstanding'] = $outstanding;
+        $row['pay_status'] = match (true) {
+            $outstanding <= 0.005 => 'paid',
+            $paid <= 0.005 => 'unpaid',
+            default => 'partial',
+        };
+
+        return $row;
     }
 
     public function invoices(?string $from, ?string $to, int $limit = 50): array
@@ -145,5 +163,117 @@ final class SalesRepository
     {
         $row = $this->db->query('SELECT MIN(invoice_date) min_date, MAX(invoice_date) max_date FROM sales_invoices')->fetch();
         return ['min' => $row['min_date'] ?? null, 'max' => $row['max_date'] ?? null];
+    }
+
+    public function marginSummary(?string $from, ?string $to, ?string $search = null): array
+    {
+        [$where, $params] = $this->filters($from, $to, $search);
+        $revenueStmt = $this->db->prepare("SELECT COALESCE(SUM(total), 0) revenue FROM sales_invoices$where");
+        $revenueStmt->execute($params);
+        $revenue = (float) $revenueStmt->fetchColumn();
+
+        [$whereJoined, $paramsJoined] = $this->filters($from, $to, $search, 'i');
+        $cogsStmt = $this->db->prepare(
+            "SELECT COALESCE(SUM(si.qty * p.cost), 0) cogs
+             FROM sales_items si
+             JOIN sales_invoices i ON i.id = si.invoice_id
+             JOIN products p ON p.id = si.product_id$whereJoined"
+        );
+        $cogsStmt->execute($paramsJoined);
+        $cogs = (float) $cogsStmt->fetchColumn();
+
+        $profit = $revenue - $cogs;
+        $marginPct = abs($revenue) < 0.00001 ? null : ($profit / $revenue) * 100;
+
+        return [
+            'revenue' => $revenue,
+            'cogs' => $cogs,
+            'profit' => $profit,
+            'margin_pct' => $marginPct,
+        ];
+    }
+
+    public function monthlyMargin(?string $from, ?string $to): array
+    {
+        [$where, $params] = $this->filters($from, $to);
+        $revenueStmt = $this->db->prepare(
+            "SELECT substr(invoice_date, 1, 7) ym, SUM(total) revenue
+             FROM sales_invoices$where
+             GROUP BY ym"
+        );
+        $revenueStmt->execute($params);
+        $revenueByYm = [];
+        foreach ($revenueStmt->fetchAll() as $row) {
+            $revenueByYm[$row['ym']] = (float) $row['revenue'];
+        }
+
+        [$whereJoined, $paramsJoined] = $this->filters($from, $to, null, 'i');
+        $cogsStmt = $this->db->prepare(
+            "SELECT substr(i.invoice_date, 1, 7) ym, SUM(si.qty * p.cost) cogs
+             FROM sales_items si
+             JOIN sales_invoices i ON i.id = si.invoice_id
+             JOIN products p ON p.id = si.product_id$whereJoined
+             GROUP BY ym"
+        );
+        $cogsStmt->execute($paramsJoined);
+        $cogsByYm = [];
+        foreach ($cogsStmt->fetchAll() as $row) {
+            $cogsByYm[$row['ym']] = (float) $row['cogs'];
+        }
+
+        $yms = array_unique(array_merge(array_keys($revenueByYm), array_keys($cogsByYm)));
+        sort($yms);
+
+        return array_map(static function (string $ym) use ($revenueByYm, $cogsByYm): array {
+            $revenue = $revenueByYm[$ym] ?? 0.0;
+            $cogs = $cogsByYm[$ym] ?? 0.0;
+
+            return [
+                'ym' => $ym,
+                'revenue' => $revenue,
+                'cogs' => $cogs,
+                'profit' => $revenue - $cogs,
+            ];
+        }, $yms);
+    }
+
+    public function outstanding(?string $from, ?string $to): array
+    {
+        [$where, $params] = $this->filters($from, $to);
+        $asOf = $this->dateBounds()['max'];
+
+        $sql = "SELECT
+                    COALESCE(SUM(CASE WHEN (total - amount_paid) > 0 THEN (total - amount_paid) ELSE 0 END), 0) total_outstanding,
+                    COALESCE(SUM(CASE WHEN due_date < :asOf AND (total - amount_paid) > 0 THEN (total - amount_paid) ELSE 0 END), 0) overdue,
+                    COALESCE(SUM(CASE WHEN (total - amount_paid) > 0 THEN 1 ELSE 0 END), 0) invoice_count
+                FROM sales_invoices$where";
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':asOf', $asOf);
+        $stmt->execute();
+        $row = $stmt->fetch();
+
+        return [
+            'total_outstanding' => (float) $row['total_outstanding'],
+            'overdue' => (float) $row['overdue'],
+            'invoice_count' => (int) $row['invoice_count'],
+        ];
+    }
+
+    public function agingInvoices(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT invoice_no, customer_name, invoice_date, due_date, total, amount_paid
+             FROM sales_invoices
+             WHERE (total - amount_paid) > 0
+             ORDER BY due_date ASC"
+        );
+
+        return array_map(static function (array $row): array {
+            $row['outstanding'] = round((float) $row['total'] - (float) $row['amount_paid'], 2);
+            return $row;
+        }, $stmt->fetchAll());
     }
 }
