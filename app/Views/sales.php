@@ -57,7 +57,7 @@ $topMax = !empty($top) ? max(array_column($top, 'revenue')) : 1;
 <section class="two-column-grid wide-first">
     <article class="panel">
         <div class="panel-head"><div><span class="panel-kicker">الأداء عبر الزمن</span><h2>اتجاه المبيعات الشهرية</h2></div><span class="date-range-note"><?= Ui::e($from ?: $bounds['min']) ?> — <?= Ui::e($to ?: $bounds['max']) ?></span></div>
-        <?php if ($monthly): ?><div class="chart-box chart-lg"><canvas data-chart="bar" data-label="المبيعات" data-values='<?= Ui::e(json_encode(array_map(static fn($m) => ['label' => $m['ym'], 'value' => $m['total']], $monthly), JSON_UNESCAPED_UNICODE)) ?>'></canvas></div><?php else: ?><div class="empty-state">لا توجد بيانات كافية لرسم الاتجاه.</div><?php endif; ?>
+        <?php if ($monthly): ?><div class="chart-box chart-lg"><canvas data-chart="bar" data-label="المبيعات" data-values='<?= Ui::e(json_encode(array_map(static fn($m) => ['label' => $m['ym'], 'value' => $m['total']], $monthly), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG)) ?>'></canvas></div><?php else: ?><div class="empty-state">لا توجد بيانات كافية لرسم الاتجاه.</div><?php endif; ?>
     </article>
     <article class="panel">
         <div class="panel-head"><div><span class="panel-kicker">ترتيب المنتجات</span><h2>الأعلى إيرادًا</h2></div></div>

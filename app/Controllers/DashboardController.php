@@ -9,11 +9,12 @@ final class DashboardController extends Controller
         $finance = new FinanceRepository();
 
         $financeMonthly = $finance->monthly(null, null);
-        $salesTrend = Report::latestChange($sales->monthly(null, null), 'total');
+        $rawSalesMonthly = $sales->monthly(null, null);
+        $salesTrend = Report::latestChange($rawSalesMonthly, 'total');
         $financeTrend = Report::latestChange($financeMonthly, 'net');
         $topProducts = $sales->topProducts(null, null, 5);
 
-        $salesMonthly = Analytics::movingAverage(Analytics::growth($sales->monthly(null, null), 'total'), 'total');
+        $salesMonthly = Analytics::movingAverage(Analytics::growth($rawSalesMonthly, 'total'), 'total');
         $outstanding = $sales->outstanding(null, null);
         $margin = $sales->marginSummary(null, null);
         $bounds = $sales->dateBounds();

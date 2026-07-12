@@ -99,7 +99,7 @@ $targetPctClamped = $target['pct'] !== null ? min(100, max(0, $target['pct'])) :
 
     <article class="panel panel-span-2">
         <div class="panel-head"><div><span class="panel-kicker">التدفق النقدي</span><h2>الإيرادات والمصروفات</h2></div><a class="text-link" href="/finance">التفاصيل <?= Ui::icon('chevron-left', 15) ?></a></div>
-        <div class="chart-box"><canvas data-chart="grouped" data-values='<?= Ui::e(json_encode(array_map(static fn($m) => ['label' => $m['ym'], 'series' => $m['series']], $finMonthly), JSON_UNESCAPED_UNICODE)) ?>'></canvas></div>
+        <div class="chart-box"><canvas data-chart="grouped" data-values='<?= Ui::e(json_encode(array_map(static fn($m) => ['label' => $m['ym'], 'series' => $m['series']], $finMonthly), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG)) ?>'></canvas></div>
     </article>
 
     <article class="panel">
