@@ -1,0 +1,12 @@
+# Byte-compiled / caches
+__pycache__/
+
+# PHP / project
+/database/erp.sqlite
+*.log
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+/tests/screenshots/
+node_modules/
