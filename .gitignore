@@ -10,3 +10,5 @@ Thumbs.db
 # Test artifacts
 /tests/screenshots/
 node_modules/
+
+.superpowers/
