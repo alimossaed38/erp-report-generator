@@ -79,6 +79,21 @@ $navItems = [
         </header>
 
         <main class="page-content">
+            <div class="print-only print-header">
+                <div class="print-header-brand">
+                    <?= (string) Config::get('company_logo', '') ?>
+                    <div>
+                        <strong><?= Ui::e($company) ?></strong>
+                        <small><?= Ui::e((string) Config::get('company_tagline', '')) ?></small>
+                    </div>
+                </div>
+                <div class="print-header-meta">
+                    <strong><?= Ui::e($title ?? '') ?></strong>
+                    <?php if (!empty($subtitle)): ?><span><?= Ui::e($subtitle) ?></span><?php endif; ?>
+                    <span>تاريخ الإصدار: <?= Ui::e(date('Y-m-d H:i')) ?></span>
+                </div>
+            </div>
+
             <section class="page-hero">
                 <div>
                     <div class="eyebrow"><span></span> مركز التقارير والتحليلات</div>
@@ -92,6 +107,11 @@ $navItems = [
             </section>
 
             <?php require $__view; ?>
+
+            <div class="print-only print-footer">
+                <span><?= Ui::e($company) ?> · <?= Ui::e($appName) ?></span>
+                <span><?= Ui::e((string) Config::get('report_footer', '')) ?></span>
+            </div>
         </main>
 
         <footer class="page-footer">
