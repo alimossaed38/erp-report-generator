@@ -1,11 +1,32 @@
 <?php
 $files = glob(__DIR__ . '/unit/*_test.php');
 $fail = 0;
-foreach ($files as $f) {
-    echo "== " . basename($f) . " ==\n";
-    $php = 'C:/wamp64/bin/php/php8.3.28/php.exe';
-    passthru('"' . $php . '" "' . $f . '"', $code);
-    if ($code !== 0) { $fail++; echo "FAILED\n"; }
+$skipped = 0;
+$hasSqlite = in_array('sqlite', PDO::getAvailableDrivers(), true);
+
+foreach ($files as $file) {
+    $name = basename($file);
+    echo '== ' . $name . " ==\n";
+
+    if (!$hasSqlite && $name !== 'router_test.php') {
+        $skipped++;
+        echo "SKIPPED: PDO_SQLite غير مفعّل في بيئة PHP الحالية.\n";
+        continue;
+    }
+
+    $command = escapeshellarg(PHP_BINARY)
+        . ' -d zend.assertions=1 -d assert.exception=1 '
+        . escapeshellarg($file);
+    passthru($command, $code);
+    if ($code !== 0) {
+        $fail++;
+        echo "FAILED\n";
+    }
 }
-echo $fail === 0 ? "\nALL UNIT TESTS PASSED\n" : "\n$fail SUITE(S) FAILED\n";
+
+if ($fail === 0) {
+    echo "\nTESTS COMPLETED" . ($skipped ? " — $skipped SKIPPED" : '') . "\n";
+} else {
+    echo "\n$fail SUITE(S) FAILED" . ($skipped ? " — $skipped SKIPPED" : '') . "\n";
+}
 exit($fail === 0 ? 0 : 1);

@@ -1,154 +1,64 @@
-# تقرير محتويات المشروع — مولد تقارير ERP
+# تقرير مراجعة وتطوير مشروع Ali ERP Analytics
 
-> تقرير نهائي يوثّق بنية المشروع ومكوّناته وكيفية تشغيله ونتائج اختباره.
-> تاريخ الإصدار: 2026-07-12
+**الإصدار:** 2.0.0  
+**التاريخ:** 2026-07-12
 
-## 1. نظرة عامة
+## الملخص التنفيذي
 
-مولد تقارير احترافي لشركة ERP، مبني بـ **PHP 8.3** و **SQLite**، بواجهات **عربية RTL**.
-يضم **لوحة تحكم** + **٣ تقارير جاهزة**: المبيعات، المخزون، المالية — مع فلاتر، رسوم بيانية (Chart.js)، وتصدير (CSV / Excel / طباعة PDF).
+تمت مراجعة المشروع كاملًا من النواة وقاعدة البيانات وحتى الواجهات والتصدير. كانت النسخة الأولى مناسبة كنموذج أولي، لكنها افتقرت إلى البحث، تقسيم الصفحات، مقارنة الفترات، التحليلات الأعمق، الاستجابة الكاملة للموبايل، والعمل دون إنترنت. أعيد بناء تجربة الاستخدام وإضافة طبقة أكبر من التحليل والأداء والأمان مع الحفاظ على بنية MVC البسيطة.
 
-- **رابط المستودع:** https://github.com/alimossaed38/erp-report-generator
-- **أُنشئ المستودع ورُفعت المهام أول بأول بواسطة Claude** (عبر `gh CLI` و `git`).
+## أهم الملاحظات على النسخة السابقة
 
-## 2. البنية والمكوّنات
+1. الواجهة كانت أساسية جدًا وتحتوي على مساحات غير مستغلة وتسلسل بصري محدود.
+2. الجداول تعرض عددًا ثابتًا من السجلات دون بحث أو ترتيب أو صفحات.
+3. الفلاتر محدودة ولا توجد اختصارات زمنية أو مقارنة بالفترة السابقة.
+4. الرسوم والخطوط تعتمد على مصادر خارجية، لذلك قد لا تعمل دون إنترنت.
+5. التصدير كان محدودًا إلى CSV وملف Excel متوافق، دون JSON أو حماية من صيغ الجداول الضارة.
+6. لم تكن هناك إعدادات مركزية لاسم النظام والعملات والمنطقة الزمنية.
+7. مخطط قاعدة البيانات لم يتضمن فهارس مخصصة للاستعلامات المتكررة.
+8. مُشغّل الاختبارات كان مرتبطًا بمسار PHP ثابت داخل WAMP.
 
-```
-erp-report-generator/
-├── public/
-│   └── index.php            ← Front Controller + توجيه + خدمة أصول /assets
-├── app/
-│   ├── Core/
-│   │   ├── Router.php        ← تسجيل ومطابقة المسارات
-│   │   ├── Database.php      ← اتصال PDO/SQLite (Singleton) + إنشاء مجلد DB
-│   │   ├── Controller.php    ← الأساس: render(view,data) + json()
-│   │   └── Request.php       ← قراءة الفلاتر (query params) بأمان
-│   ├── Controllers/
-│   │   ├── DashboardController.php
-│   │   ├── SalesController.php
-│   │   ├── InventoryController.php
-│   │   ├── FinanceController.php
-│   │   └── ExportController.php
-│   ├── Models/
-│   │   ├── SalesRepository.php      ← summary / monthly / topProducts / invoices
-│   │   ├── InventoryRepository.php  ← summary / products / valueByCategory / categories
-│   │   └── FinanceRepository.php    ← summary / monthly / transactions
-│   └── Views/
-│       ├── layout.php        ← هيكل RTL: Sidebar + Header + أصول
-│       ├── dashboard.php · sales.php · inventory.php · finance.php
-├── database/
-│   ├── schema.sql            ← تعريف الجداول (products, sales_invoices, sales_items, transactions)
-│   └── seed.php              ← توليد بيانات تجريبية حتمية (١٢ شهر)
-├── assets/
-│   ├── css/app.css           ← نظام تصميم احترافي RTL + نمط طباعة
-│   └── js/app.js             ← تفعيل Chart.js (سلسلة مفردة/متعددة)
-├── tests/
-│   ├── unit/                 ← 6 مجموعات اختبار (PHP)
-│   ├── e2e/README.md         ← إجراء اختبار Playwright
-│   ├── screenshots/          ← لقطات الواجهات
-│   └── run_unit.php          ← مُشغّل اختبارات الوحدة
-├── docs/                     ← الوثائق (spec, plan) + هذا التقرير
-└── README.md
-```
+## ما تم تنفيذه
 
-### طبقة البيانات (SQLite)
-- `products(id, name, category, price, cost, stock_qty, reorder_level)`
-- `sales_invoices(id, invoice_no, customer_name, invoice_date, total)`
-- `sales_items(id, invoice_id, product_id, qty, unit_price, line_total)`
-- `transactions(id, type[income|expense], category, amount, txn_date, description)`
+### الواجهة
+- نظام تصميم حديث RTL بهوية داكنة احترافية وألوان مؤشرات واضحة.
+- شريط جانبي متجاوب، رأس صفحة، حالة اتصال، وضع داكن محفوظ.
+- بطاقات مؤشرات محسنة، رسوم محلية، جداول احترافية، حالات فارغة وتنبيهات.
+- تحسين العرض والطباعة والموبايل والشاشات المتوسطة.
 
-البذور **حتمية** (مولّد LCG بذرة ثابتة) فتتكرر النتائج بدقة عبر التشغيلات. الحجم المولّد: **30 منتج، 223 فاتورة، 680 بند، 115 حركة مالية**، مع تطابق كامل بين إجمالي كل فاتورة ومجموع بنودها.
+### المبيعات
+- بحث برقم الفاتورة أو العميل.
+- فترة من/إلى واختصارات 30/90 يوم و12 شهرًا.
+- ترتيب حسب الفاتورة والعميل والتاريخ والإجمالي.
+- تقسيم صفحات واختيار عدد السجلات.
+- العملاء الفريدون ومتوسط الفاتورة ومقارنة الفترة السابقة.
+- أفضل المنتجات حسب الإيراد.
 
-## 3. كيفية التشغيل
+### المخزون
+- بحث وتصنيف وحالات: متوفر، منخفض، نفد.
+- قيمة المخزون، عدد الوحدات، الربح المتوقع، النافد والمنخفض.
+- ترتيب حسب الاسم والتصنيف والكمية والسعر والقيمة.
+- قائمة أولوية لإعادة الطلب.
 
-```bash
-# 1) توليد قاعدة البيانات والبيانات التجريبية
-"C:/wamp64/bin/php/php8.3.28/php.exe" database/seed.php
+### المالية
+- فلاتر التاريخ والنوع والتصنيف والوصف.
+- الإيرادات والمصروفات وصافي التدفق والهامش وعدد الحركات.
+- مقارنة الفترات وتحليل المصروفات حسب التصنيف.
+- ترتيب وتقسيم صفحات للحركات.
 
-# 2) تشغيل الخادم (تمرير public/index.php ضروري لخدمة /assets)
-"C:/wamp64/bin/php/php8.3.28/php.exe" -S 127.0.0.1:8010 -t public public/index.php
+### البنية والأداء
+- إضافة `Config`, `Report`, `Ui` كمساعدات مركزية.
+- التحقق من المدخلات والقيم المسموحة والتواريخ.
+- إضافة فهارس للاستعلامات الأساسية وتفعيل WAL وbusy timeout.
+- إزالة مكتبات الواجهة الخارجية وتشغيل الرسوم بـ JavaScript محلي.
+- إضافة فحص متطلبات ورسائل أوضح عند غياب PDO_SQLite.
 
-# 3) افتح المتصفح على
-http://127.0.0.1:8010/
-```
+## التحقق الفني
 
-## 4. التقارير والميزات
+- تم فحص صياغة جميع ملفات PHP بنجاح بواسطة `php -l`.
+- تم فحص صياغة JavaScript بنجاح بواسطة `node --check`.
+- تم تنفيذ مخطط SQLite على قاعدة مؤقتة والتحقق من الجداول والفهارس.
+- تم اختبار استعلامات الفترات والبحث وحالات المخزون وأنواع الحركات باستخدام قاعدة البيانات المرفقة.
+- تم توليد الصفحات الأربع ببيانات فعلية كقوالب اختبار دون أخطاء PHP.
 
-| التقرير | المؤشرات (KPIs) | الرسم البياني | الفلاتر | التصدير |
-|--------|------------------|---------------|---------|---------|
-| لوحة التحكم | إجمالي المبيعات، صافي الربح، قيمة المخزون، أصناف ناقصة | مبيعات شهرية (خطي) + إيراد/مصروف (أعمدة) | — | — |
-| المبيعات | إجمالي المبيعات، عدد الفواتير، متوسط الفاتورة | مبيعات شهرية (أعمدة) | من/إلى تاريخ | CSV · Excel · PDF |
-| المخزون | إجمالي الأصناف، قيمة المخزون، أصناف ناقصة | قيمة المخزون حسب التصنيف | التصنيف | CSV · Excel · PDF |
-| المالية | الإيرادات، المصروفات، صافي الربح | إيراد مقابل مصروف شهري | من/إلى تاريخ | CSV · Excel · PDF |
-
-الأمان: كل الاستعلامات **مُعامَلة (parameterized)**، وكل مخرجات المستخدم عبر `htmlspecialchars`، وبيانات الرسوم عبر `JSON_UNESCAPED_UNICODE`، وممر الأصول محميّ من traversal.
-
-## 5. نتائج الاختبار
-
-### 5.1 اختبارات الوحدة (PHP)
-`"C:/wamp64/bin/php/php8.3.28/php.exe" tests/run_unit.php`
-
-```
-== export_test.php ==      export_test OK
-== finance_repo_test.php == finance_repo_test OK
-== inventory_repo_test.php == inventory_repo_test OK
-== router_test.php ==      router_test OK
-== sales_repo_test.php ==  sales_repo_test OK
-== seed_test.php ==        seed_test OK
-
-ALL UNIT TESTS PASSED
-```
-**النتيجة: 6/6 مجموعات ناجحة.**
-
-### 5.2 اختبار الواجهات (UI Automation — Playwright MCP)
-قاد Claude متصفحاً فعلياً عبر أدوات Playwright وتحقّق من:
-
-- **التنقّل:** الصفحات الأربع (`/`, `/sales`, `/inventory`, `/finance`) تُرجع 200 وعناوين عربية صحيحة، والأصول `/assets/*` تُخدَم (200)، والتصدير يُرجع ترويسة `Content-Disposition: attachment`.
-- **العرض:** ظهور بطاقات KPI والجداول (بصفوف بيانات حقيقية) ورسوم Chart.js (canvases مرسومة فعلياً — تحقّق برمجي: مخطط المخزون يحمل 5 نقاط: 931,376 / 715,603 / 674,523 / 522,805 / 452,600).
-- **فلتر المخزون:** اختيار التصنيف «إلكترونيات» ⇐ القائمة تعرض القيمة المختارة، الجدول يعرض **6 صفوف فقط كلها إلكترونيات**، ومؤشر «إجمالي الأصناف» ينخفض من **30 إلى 6**.
-- **فلتر المبيعات:** المدى `2026-01-01 → 2026-03-31` ⇐ «عدد الفواتير» ينخفض من **223 إلى 58**، وكل تواريخ الفواتير المعروضة **داخل المدى** (صفر خارج النطاق).
-- **الكونسول:** خالٍ من الأخطاء (بعد إضافة أيقونة مضمّنة).
-
-## 6. لقطات الواجهات
-
-### لوحة التحكم
-![لوحة التحكم](../tests/screenshots/dashboard.png)
-
-### تقرير المبيعات
-![المبيعات](../tests/screenshots/sales.png)
-
-### تقرير المخزون
-![المخزون](../tests/screenshots/inventory.png)
-
-### التقرير المالي
-![المالية](../tests/screenshots/finance.png)
-
-## 7. سجل الرفع إلى GitHub (أول بأول)
-
-رُفعت كل مرحلة كـ commit مستقل عبر Claude:
-
-```
-ba102a4 test(e2e): add UI screenshots + inline favicon
-7f675a5 test: unit runner + Playwright E2E procedure doc
-5bf6730 feat(export): CSV + Excel export for all reports
-f9025ff feat(finance,dashboard): repositories, controllers, views
-b19fcf8 docs: require router-script form in serve command so /assets are served
-a3f1050 feat(ui): design system + layout + inventory report
-f86ab98 feat(sales): repository, controller, view
-3cf8d74 feat(db): schema + deterministic seed data
-d976855 fix(core): ensure database/ directory exists in Database::connection
-bce8c8d feat(core): router, database, controller, request, front controller
-c66e819 chore: scaffold project + smoke page + README
-1575fe1 docs: add implementation plan
-f289354 docs: add ERP report generator design spec
-```
-
-## 8. الخلاصة
-
-مشروع مكتمل يحقّق كل الشروط المطلوبة:
-1. ✅ **إنشاء المستودع على GitHub بواسطة Claude.**
-2. ✅ **رفع المهام أول بأول** (13 commit مرحلي).
-3. ✅ **اختبار يدوي وآلي** بأدوات UI Automation (Playwright) + اختبارات وحدة.
-4. ✅ **تقرير محتويات المشروع** (هذا المستند).
-
-المشروع مبني بمعمارية MVC نظيفة، قابل للتوسّع (إضافة تقارير جديدة = Repository + Controller + View)، وجاهز للعرض كنموذج احترافي.
+> تشغيل اختبارات PHP المتصلة بقاعدة البيانات يتطلب تفعيل `PDO_SQLite` في بيئة PHP المستهدفة، ويمكن التأكد منه عبر `php tools/check_requirements.php`.

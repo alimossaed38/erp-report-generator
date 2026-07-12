@@ -1,72 +1,149 @@
 <?php
 
-class SalesRepository
+final class SalesRepository
 {
     private PDO $db;
-    public function __construct() { $this->db = Database::connection(); }
 
-    private function range(?string $from, ?string $to): array
+    public function __construct()
     {
-        $where = [];
-        $params = [];
-        if ($from) { $where[] = 'invoice_date >= ?'; $params[] = $from; }
-        if ($to)   { $where[] = 'invoice_date <= ?'; $params[] = $to; }
-        $sql = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
-        return [$sql, $params];
+        $this->db = Database::connection();
     }
 
-    public function summary(?string $from, ?string $to): array
+    private function filters(?string $from, ?string $to, ?string $search = null, string $alias = ''): array
     {
-        [$w, $p] = $this->range($from, $to);
-        $row = $this->db->prepare("SELECT COUNT(*) c, COALESCE(SUM(total),0) t FROM sales_invoices$w");
-        $row->execute($p);
-        $r = $row->fetch();
-        $count = (int) $r['c'];
-        $total = (float) $r['t'];
-        return ['total' => $total, 'count' => $count, 'avg' => $count ? $total / $count : 0.0];
+        $prefix = $alias !== '' ? $alias . '.' : '';
+        $where = [];
+        $params = [];
+
+        if ($from) {
+            $where[] = $prefix . 'invoice_date >= :from';
+            $params[':from'] = $from;
+        }
+        if ($to) {
+            $where[] = $prefix . 'invoice_date <= :to';
+            $params[':to'] = $to;
+        }
+        if ($search) {
+            $where[] = '(' . $prefix . 'invoice_no LIKE :search OR ' . $prefix . 'customer_name LIKE :search)';
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        return [$where ? ' WHERE ' . implode(' AND ', $where) : '', $params];
+    }
+
+    public function summary(?string $from, ?string $to, ?string $search = null): array
+    {
+        [$where, $params] = $this->filters($from, $to, $search);
+        $stmt = $this->db->prepare(
+            "SELECT COUNT(*) count,
+                    COALESCE(SUM(total), 0) total,
+                    COALESCE(AVG(total), 0) average,
+                    COUNT(DISTINCT customer_name) customers
+             FROM sales_invoices$where"
+        );
+        $stmt->execute($params);
+        $row = $stmt->fetch();
+
+        return [
+            'total' => (float) $row['total'],
+            'count' => (int) $row['count'],
+            'avg' => (float) $row['average'],
+            'customers' => (int) $row['customers'],
+        ];
     }
 
     public function monthly(?string $from, ?string $to): array
     {
-        [$w, $p] = $this->range($from, $to);
+        [$where, $params] = $this->filters($from, $to);
         $stmt = $this->db->prepare(
-            "SELECT substr(invoice_date,1,7) ym, SUM(total) total
-             FROM sales_invoices$w GROUP BY ym ORDER BY ym"
+            "SELECT substr(invoice_date, 1, 7) ym, SUM(total) total, COUNT(*) invoices
+             FROM sales_invoices$where
+             GROUP BY ym ORDER BY ym"
         );
-        $stmt->execute($p);
-        return array_map(fn($r) => ['ym' => $r['ym'], 'total' => (float) $r['total']], $stmt->fetchAll());
+        $stmt->execute($params);
+
+        return array_map(static fn(array $row): array => [
+            'ym' => $row['ym'],
+            'total' => (float) $row['total'],
+            'invoices' => (int) $row['invoices'],
+        ], $stmt->fetchAll());
     }
 
     public function topProducts(?string $from, ?string $to, int $limit = 10): array
     {
-        $where = [];
-        $params = [];
-        if ($from) { $where[] = 'i.invoice_date >= ?'; $params[] = $from; }
-        if ($to)   { $where[] = 'i.invoice_date <= ?'; $params[] = $to; }
-        $w = $where ? (' WHERE ' . implode(' AND ', $where)) : '';
-        $params[] = $limit;
+        [$where, $params] = $this->filters($from, $to, null, 'i');
         $stmt = $this->db->prepare(
-            "SELECT p.name name, SUM(si.qty) qty, SUM(si.line_total) revenue
+            "SELECT p.name, p.category, SUM(si.qty) qty, SUM(si.line_total) revenue
              FROM sales_items si
              JOIN sales_invoices i ON i.id = si.invoice_id
-             JOIN products p ON p.id = si.product_id$w
-             GROUP BY p.id ORDER BY revenue DESC LIMIT ?"
+             JOIN products p ON p.id = si.product_id$where
+             GROUP BY p.id
+             ORDER BY revenue DESC
+             LIMIT :limit"
         );
-        $stmt->execute($params);
-        return array_map(fn($r) => [
-            'name' => $r['name'], 'qty' => (int) $r['qty'], 'revenue' => (float) $r['revenue']
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':limit', max(1, $limit), PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(static fn(array $row): array => [
+            'name' => $row['name'],
+            'category' => $row['category'],
+            'qty' => (int) $row['qty'],
+            'revenue' => (float) $row['revenue'],
         ], $stmt->fetchAll());
+    }
+
+    public function invoicePage(
+        ?string $from,
+        ?string $to,
+        ?string $search,
+        int $page,
+        int $perPage,
+        string $sort = 'invoice_date',
+        string $direction = 'desc'
+    ): array {
+        [$where, $params] = $this->filters($from, $to, $search);
+        $sortMap = [
+            'invoice_no' => 'invoice_no',
+            'customer' => 'customer_name',
+            'invoice_date' => 'invoice_date',
+            'total' => 'total',
+        ];
+        $orderBy = $sortMap[$sort] ?? 'invoice_date';
+        $direction = strtolower($direction) === 'asc' ? 'ASC' : 'DESC';
+
+        $count = $this->db->prepare("SELECT COUNT(*) FROM sales_invoices$where");
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+        $meta = Report::pagination($total, $page, $perPage);
+        $offset = ($meta['page'] - 1) * $perPage;
+
+        $stmt = $this->db->prepare(
+            "SELECT invoice_no, customer_name, invoice_date, total
+             FROM sales_invoices$where
+             ORDER BY $orderBy $direction, id DESC
+             LIMIT :limit OFFSET :offset"
+        );
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+        $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return ['rows' => $stmt->fetchAll(), 'pagination' => $meta];
     }
 
     public function invoices(?string $from, ?string $to, int $limit = 50): array
     {
-        [$w, $p] = $this->range($from, $to);
-        $p[] = $limit;
-        $stmt = $this->db->prepare(
-            "SELECT invoice_no, customer_name, invoice_date, total
-             FROM sales_invoices$w ORDER BY invoice_date DESC, id DESC LIMIT ?"
-        );
-        $stmt->execute($p);
-        return $stmt->fetchAll();
+        return $this->invoicePage($from, $to, null, 1, $limit)['rows'];
+    }
+
+    public function dateBounds(): array
+    {
+        $row = $this->db->query('SELECT MIN(invoice_date) min_date, MAX(invoice_date) max_date FROM sales_invoices')->fetch();
+        return ['min' => $row['min_date'] ?? null, 'max' => $row['max_date'] ?? null];
     }
 }

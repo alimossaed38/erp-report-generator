@@ -1,14 +1,19 @@
-# Byte-compiled / caches
-__pycache__/
-
-# PHP / project
+# PHP / runtime
 /database/erp.sqlite
+/database/erp.sqlite-wal
+/database/erp.sqlite-shm
 *.log
+
+# Operating system
 .DS_Store
 Thumbs.db
 
-# Test artifacts
+# Test and local artifacts
 node_modules/
 .playwright-mcp/
-
 .superpowers/
+tests/preview/
+tests/screenshots*/
+
+# Build artifacts
+*.zip

@@ -38,3 +38,13 @@ CREATE TABLE transactions (
     txn_date TEXT NOT NULL,
     description TEXT NOT NULL
 );
+
+CREATE INDEX idx_sales_invoices_date ON sales_invoices(invoice_date);
+CREATE INDEX idx_sales_invoices_customer ON sales_invoices(customer_name);
+CREATE INDEX idx_sales_items_invoice ON sales_items(invoice_id);
+CREATE INDEX idx_sales_items_product ON sales_items(product_id);
+CREATE INDEX idx_products_category ON products(category);
+CREATE INDEX idx_products_stock ON products(stock_qty, reorder_level);
+CREATE INDEX idx_transactions_date ON transactions(txn_date);
+CREATE INDEX idx_transactions_type ON transactions(type);
+CREATE INDEX idx_transactions_category ON transactions(category);

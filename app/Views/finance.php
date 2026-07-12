@@ -1,41 +1,46 @@
 <?php
-/** @var array $summary @var array $monthly @var array $transactions */
+/** @var array $summary @var array $monthly @var array $transactions @var array $pagination */
+$params = ['from' => $from, 'to' => $to, 'type' => $type, 'category' => $category, 'q' => $q, 'per_page' => $perPage, 'sort' => $sort, 'dir' => $direction];
+$exportParams = ['report' => 'finance', 'from' => $from, 'to' => $to, 'type' => $type, 'category' => $category, 'q' => $q];
+$change = static fn(string $key): ?float => $previousSummary ? Report::change((float) $summary[$key], (float) $previousSummary[$key]) : null;
+$sortLink = static function (string $key, string $label) use ($params, $sort, $direction): string {
+    $next = ($sort === $key && $direction === 'asc') ? 'desc' : 'asc';
+    $icon = $sort === $key ? ($direction === 'asc' ? Ui::icon('arrow-up', 13) : Ui::icon('arrow-down', 13)) : '';
+    return '<a class="sort-link" href="' . Ui::e(Ui::url('', array_merge($params, ['sort' => $key, 'dir' => $next, 'page' => 1]))) . '">' . Ui::e($label) . $icon . '</a>';
+};
+$expenseMax = !empty($expenses) ? max(array_column($expenses, 'total')) : 1;
 ?>
-<form method="get" class="filters">
-    <label>من: <input type="date" name="from" value="<?= htmlspecialchars($from ?? '') ?>"></label>
-    <label>إلى: <input type="date" name="to" value="<?= htmlspecialchars($to ?? '') ?>"></label>
-    <button type="submit">تطبيق</button>
-    <a class="export" href="/export?report=finance&format=csv&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>">تصدير CSV</a>
-    <a class="export" href="/export?report=finance&format=xls&from=<?= urlencode($from ?? '') ?>&to=<?= urlencode($to ?? '') ?>">تصدير Excel</a>
-    <button type="button" onclick="window.print()">طباعة / PDF</button>
-</form>
-
-<section class="kpis">
-    <div class="kpi good"><span class="kpi-label">الإيرادات</span><span class="kpi-value"><?= money($summary['income']) ?></span></div>
-    <div class="kpi bad"><span class="kpi-label">المصروفات</span><span class="kpi-value"><?= money($summary['expense']) ?></span></div>
-    <div class="kpi <?= $summary['net']>=0?'good':'bad' ?>"><span class="kpi-label">صافي الربح</span><span class="kpi-value"><?= money($summary['net']) ?></span></div>
+<section class="filter-panel">
+    <div class="filter-panel-head"><div><span class="filter-icon"><?= Ui::icon('filter') ?></span><div><strong>تصفية الحركات المالية</strong><small>حلّل التدفقات حسب الفترة والنوع والتصنيف</small></div></div><div class="quick-ranges"><?php foreach ($quickRanges as $range): ?><a href="<?= Ui::e(Ui::url('/finance', ['from' => $range['from'], 'to' => $range['to']])) ?>"><?= Ui::e($range['label']) ?></a><?php endforeach; ?></div></div>
+    <form method="get" class="filter-grid finance-filter-grid">
+        <label class="field field-search"><span>بحث في الوصف</span><div class="input-icon"><?= Ui::icon('search', 17) ?><input type="search" name="q" value="<?= Ui::e($q ?? '') ?>" placeholder="الوصف أو التصنيف"></div></label>
+        <label class="field"><span>من تاريخ</span><input type="date" name="from" value="<?= Ui::e($from ?? '') ?>" min="<?= Ui::e($bounds['min'] ?? '') ?>" max="<?= Ui::e($bounds['max'] ?? '') ?>"></label>
+        <label class="field"><span>إلى تاريخ</span><input type="date" name="to" value="<?= Ui::e($to ?? '') ?>" min="<?= Ui::e($bounds['min'] ?? '') ?>" max="<?= Ui::e($bounds['max'] ?? '') ?>"></label>
+        <label class="field"><span>النوع</span><select name="type"><option value="">الكل</option><option value="income" <?= $type === 'income' ? 'selected' : '' ?>>إيرادات</option><option value="expense" <?= $type === 'expense' ? 'selected' : '' ?>>مصروفات</option></select></label>
+        <label class="field"><span>التصنيف</span><select name="category"><option value="">كل التصنيفات</option><?php foreach ($categories as $item): ?><option value="<?= Ui::e($item) ?>" <?= $category === $item ? 'selected' : '' ?>><?= Ui::e($item) ?></option><?php endforeach; ?></select></label>
+        <label class="field field-small"><span>عدد الصفوف</span><select name="per_page"><?php foreach (Config::get('per_page_options', [10,25,50,100]) as $option): ?><option value="<?= $option ?>" <?= $perPage === (int) $option ? 'selected' : '' ?>><?= $option ?></option><?php endforeach; ?></select></label>
+        <input type="hidden" name="sort" value="<?= Ui::e($sort) ?>"><input type="hidden" name="dir" value="<?= Ui::e($direction) ?>">
+        <div class="filter-actions"><button class="btn primary" type="submit"><?= Ui::icon('filter', 17) ?> تطبيق</button><a class="btn ghost" href="/finance"><?= Ui::icon('reset', 17) ?> إعادة ضبط</a></div>
+    </form>
 </section>
 
-<section class="card">
-    <h2>الإيرادات مقابل المصروفات (شهرياً)</h2>
-    <canvas id="finChart" data-type="bar"
-      data-values='<?= json_encode(array_map(fn($m)=>["label"=>$m["ym"],"series"=>$m["series"]], $monthly), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG) ?>'></canvas>
+<div class="report-toolbar"><div class="result-summary"><strong><?= Ui::number($pagination['total']) ?></strong> حركة مالية مطابقة<?php if ($type): ?><span><?= $type === 'income' ? 'إيرادات فقط' : 'مصروفات فقط' ?></span><?php endif; ?></div><div class="export-actions"><a class="btn soft" href="<?= Ui::e(Ui::url('/export', array_merge($exportParams, ['format' => 'csv']))) ?>"><?= Ui::icon('download', 17) ?> CSV</a><a class="btn soft" href="<?= Ui::e(Ui::url('/export', array_merge($exportParams, ['format' => 'xls']))) ?>"><?= Ui::icon('download', 17) ?> Excel</a><button class="btn dark" type="button" data-print><?= Ui::icon('printer', 17) ?> طباعة / PDF</button></div></div>
+
+<section class="metric-grid metric-grid-4">
+    <article class="metric-card accent-green"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('arrow-up') ?></span><?php if ($previousSummary): ?><span class="metric-trend <?= ($change('income') ?? 0) >= 0 ? 'up' : 'down' ?>"><?= Ui::percent($change('income')) ?></span><?php endif; ?></div><span class="metric-label">إجمالي الإيرادات</span><strong><?= Ui::money($summary['income']) ?></strong><small><?= $previousSummary ? 'مقارنة بالفترة السابقة' : 'ضمن النتائج الحالية' ?></small></article>
+    <article class="metric-card accent-red"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('arrow-down') ?></span><?php if ($previousSummary): ?><span class="metric-trend <?= ($change('expense') ?? 0) <= 0 ? 'up' : 'down' ?>"><?= Ui::percent($change('expense')) ?></span><?php endif; ?></div><span class="metric-label">إجمالي المصروفات</span><strong><?= Ui::money($summary['expense']) ?></strong><small>إجمالي الإنفاق التشغيلي</small></article>
+    <article class="metric-card accent-blue"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('finance') ?></span><?php if ($previousSummary): ?><span class="metric-trend <?= ($change('net') ?? 0) >= 0 ? 'up' : 'down' ?>"><?= Ui::percent($change('net')) ?></span><?php endif; ?></div><span class="metric-label">صافي التدفق</span><strong><?= Ui::money($summary['net']) ?></strong><small><?= $summary['net'] >= 0 ? 'فائض إيجابي' : 'عجز يحتاج مراجعة' ?></small></article>
+    <article class="metric-card accent-violet"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('target') ?></span><span class="metric-mini"><?= Ui::number($summary['count']) ?> حركة</span></div><span class="metric-label">هامش صافي التدفق</span><strong><?= Ui::percent($summary['margin']) ?></strong><small>صافي التدفق ÷ الإيرادات</small></article>
 </section>
 
-<section class="card">
-    <h2>آخر الحركات المالية</h2>
-    <table>
-        <thead><tr><th>التاريخ</th><th>النوع</th><th>التصنيف</th><th>المبلغ</th><th>الوصف</th></tr></thead>
-        <tbody>
-        <?php foreach ($transactions as $t): ?>
-            <tr>
-                <td><?= htmlspecialchars($t['txn_date']) ?></td>
-                <td><span class="badge <?= $t['type']==='income'?'ok':'low' ?>"><?= $t['type']==='income'?'إيراد':'مصروف' ?></span></td>
-                <td><?= htmlspecialchars($t['category']) ?></td>
-                <td><?= money($t['amount']) ?></td>
-                <td><?= htmlspecialchars($t['description']) ?></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
+<section class="two-column-grid wide-first">
+    <article class="panel"><div class="panel-head"><div><span class="panel-kicker">المقارنة الشهرية</span><h2>الإيرادات مقابل المصروفات</h2></div><span class="date-range-note"><?= Ui::e($from ?: $bounds['min']) ?> — <?= Ui::e($to ?: $bounds['max']) ?></span></div><?php if ($monthly): ?><div class="chart-box chart-lg"><canvas data-chart="grouped" data-values='<?= Ui::e(json_encode(array_map(static fn($m) => ['label' => $m['ym'], 'series' => $m['series']], $monthly), JSON_UNESCAPED_UNICODE)) ?>'></canvas></div><?php else: ?><div class="empty-state">لا توجد بيانات كافية للرسم.</div><?php endif; ?></article>
+    <article class="panel"><div class="panel-head"><div><span class="panel-kicker">تحليل الإنفاق</span><h2>المصروفات حسب التصنيف</h2></div></div><?php if ($expenses): ?><div class="rank-list dense"><?php foreach ($expenses as $index => $expense): ?><div class="rank-row"><span class="rank-no"><?= $index + 1 ?></span><div class="rank-content"><div><strong><?= Ui::e($expense['category']) ?></strong><span><?= Ui::number(($expense['total'] / max(1, $summary['expense'])) * 100, 1) ?>% من المصروفات</span></div><div class="progress danger"><i style="width:<?= max(5, ($expense['total'] / $expenseMax) * 100) ?>%"></i></div></div><b><?= Ui::money($expense['total']) ?></b></div><?php endforeach; ?></div><?php else: ?><div class="empty-state compact">لا توجد مصروفات ضمن الفترة.</div><?php endif; ?></article>
+</section>
+
+<section class="panel table-panel">
+    <div class="panel-head"><div><span class="panel-kicker">دفتر الحركات</span><h2>الحركات المالية</h2></div><span class="table-count"><?= Ui::number($pagination['total']) ?> سجل</span></div>
+    <?php if ($transactions): ?><div class="table-wrap"><table class="data-table"><thead><tr><th><?= $sortLink('txn_date', 'التاريخ') ?></th><th><?= $sortLink('type', 'النوع') ?></th><th><?= $sortLink('category', 'التصنيف') ?></th><th><?= $sortLink('amount', 'المبلغ') ?></th><th>الوصف</th></tr></thead><tbody>
+    <?php foreach ($transactions as $transaction): ?><tr><td><?= Ui::e($transaction['txn_date']) ?></td><td><span class="badge <?= $transaction['type'] === 'income' ? 'success' : 'danger' ?>"><i></i> <?= $transaction['type'] === 'income' ? 'إيراد' : 'مصروف' ?></span></td><td><span class="category-pill"><?= Ui::e($transaction['category']) ?></span></td><td class="money-cell <?= $transaction['type'] === 'income' ? 'positive' : 'negative' ?>"><?= $transaction['type'] === 'income' ? '+' : '−' ?> <?= Ui::money($transaction['amount']) ?></td><td><?= Ui::e($transaction['description']) ?></td></tr><?php endforeach; ?>
+    </tbody></table></div><?php $baseParams = $params; require __DIR__ . '/partials/pagination.php'; ?><?php else: ?><div class="empty-state"><?= Ui::icon('search', 30) ?><strong>لا توجد حركات مالية مطابقة</strong><span>جرّب تغيير الفلاتر أو الفترة الزمنية.</span></div><?php endif; ?>
 </section>
