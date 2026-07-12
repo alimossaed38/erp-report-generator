@@ -5,6 +5,7 @@ $appName = (string) Config::get('name', 'ERP Analytics');
 $company = (string) Config::get('company', 'الشركة');
 $navItems = [
     'dashboard' => ['href' => '/', 'label' => 'لوحة المعلومات', 'icon' => 'dashboard'],
+    'summary' => ['href' => '/summary', 'label' => 'الملخص التنفيذي', 'icon' => 'trend'],
     'sales' => ['href' => '/sales', 'label' => 'المبيعات', 'icon' => 'sales'],
     'customers' => ['href' => '/customers', 'label' => 'العملاء', 'icon' => 'users'],
     'aging' => ['href' => '/aging', 'label' => 'أعمار الذمم', 'icon' => 'receipt'],

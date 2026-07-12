@@ -44,6 +44,7 @@ set_exception_handler(static function (Throwable $e): void {
 
 $router = new Router();
 $router->add('/', [DashboardController::class, 'index']);
+$router->add('/summary', [SummaryController::class, 'index']);
 $router->add('/sales', [SalesController::class, 'index']);
 $router->add('/inventory', [InventoryController::class, 'index']);
 $router->add('/finance', [FinanceController::class, 'index']);
