@@ -21,13 +21,13 @@ final class SummaryController extends Controller
         $currentYm = substr($bounds['max'] ?? '', 0, 7);
 
         $salesSummary = $sales->summary(null, null);
-        $rawSalesMonthly = $sales->monthly(null, null);
-        $salesGrowth = Analytics::growth($rawSalesMonthly, 'total');
+        $margin = $sales->marginSummary(null, null);
+        // monthlyMargin's `revenue` per ym == monthly()'s `total`, so derive growth
+        // and the current-month figure from it and avoid a duplicate monthly() query.
+        $monthlyMargin = $sales->monthlyMargin(null, null);
+        $salesGrowth = Analytics::growth($monthlyMargin, 'revenue');
         $lastGrowthRow = $salesGrowth ? end($salesGrowth) : null;
         $salesMomGrowth = $lastGrowthRow['mom'] ?? null;
-
-        $margin = $sales->marginSummary(null, null);
-        $monthlyMargin = $sales->monthlyMargin(null, null);
 
         $outstanding = $sales->outstanding(null, null);
 
@@ -39,13 +39,13 @@ final class SummaryController extends Controller
         ];
 
         $currentMonthRow = null;
-        foreach ($rawSalesMonthly as $row) {
+        foreach ($monthlyMargin as $row) {
             if ($row['ym'] === $currentYm) {
                 $currentMonthRow = $row;
                 break;
             }
         }
-        $currentMonthTotal = (float) ($currentMonthRow['total'] ?? 0.0);
+        $currentMonthTotal = (float) ($currentMonthRow['revenue'] ?? 0.0);
         $targetCurrent = Analytics::targetProgress($currentMonthTotal, $targets->forPeriod($currentYm));
 
         $rangeTarget = $targets->range($bounds['min'], $bounds['max']);
