@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS sales_items;
 DROP TABLE IF EXISTS sales_invoices;
 DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS targets;
 
 CREATE TABLE products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,7 +19,9 @@ CREATE TABLE sales_invoices (
     invoice_no TEXT NOT NULL,
     customer_name TEXT NOT NULL,
     invoice_date TEXT NOT NULL,
-    total REAL NOT NULL
+    total REAL NOT NULL,
+    due_date TEXT NOT NULL,
+    amount_paid REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE sales_items (
@@ -39,7 +42,13 @@ CREATE TABLE transactions (
     description TEXT NOT NULL
 );
 
+CREATE TABLE targets (
+    period TEXT PRIMARY KEY,
+    sales_target REAL NOT NULL
+);
+
 CREATE INDEX idx_sales_invoices_date ON sales_invoices(invoice_date);
+CREATE INDEX idx_sales_invoices_due ON sales_invoices(due_date);
 CREATE INDEX idx_sales_invoices_customer ON sales_invoices(customer_name);
 CREATE INDEX idx_sales_items_invoice ON sales_items(invoice_id);
 CREATE INDEX idx_sales_items_product ON sales_items(product_id);

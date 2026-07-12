@@ -38,7 +38,7 @@ foreach ($productNames as $i => $name) {
 // sales invoices + items across 12 months (2025-07 .. 2026-06)
 $customers = ['مؤسسة النور', 'شركة الأفق', 'مكتب الرياض', 'مجموعة الخليج', 'مؤسسة البناء',
     'شركة المستقبل', 'متجر السلام', 'مؤسسة الرواد', 'شركة الإبداع', 'مكتب الإنجاز'];
-$invStmt = $db->prepare('INSERT INTO sales_invoices (invoice_no, customer_name, invoice_date, total) VALUES (?,?,?,?)');
+$invStmt = $db->prepare('INSERT INTO sales_invoices (invoice_no, customer_name, invoice_date, total, due_date, amount_paid) VALUES (?,?,?,?,?,?)');
 $itemStmt = $db->prepare('INSERT INTO sales_items (invoice_id, product_id, qty, unit_price, line_total) VALUES (?,?,?,?,?)');
 
 $prices = [];
@@ -53,7 +53,8 @@ for ($m = 0; $m < 12; $m++) {
         $day = str_pad((string) $rand(1, 28), 2, '0', STR_PAD_LEFT);
         $mm = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
         $date = "$year-$mm-$day";
-        $invStmt->execute(["INV-" . (++$invoiceNo), $customers[$rand(0, count($customers)-1)], $date, 0]);
+        $dueDate = (new DateTimeImmutable($date))->modify('+30 days')->format('Y-m-d');
+        $invStmt->execute(["INV-" . (++$invoiceNo), $customers[$rand(0, count($customers)-1)], $date, 0, $dueDate, 0]);
         $invId = (int) $db->lastInsertId();
         $lines = $rand(1, 5);
         $total = 0.0;
@@ -65,7 +66,16 @@ for ($m = 0; $m < 12; $m++) {
             $itemStmt->execute([$invId, $pid, $qty, $unit, $lineTotal]);
             $total += $lineTotal;
         }
-        $db->prepare('UPDATE sales_invoices SET total = ? WHERE id = ?')->execute([$total, $invId]);
+        $roll = $rand(1, 100);
+        if ($roll <= 65) {
+            $paid = $total;
+        } elseif ($roll <= 80) {
+            $paid = round($total * ($rand(30, 80) / 100), 2);
+        } else {
+            $paid = 0.0;
+        }
+        $db->prepare('UPDATE sales_invoices SET total = ?, due_date = ?, amount_paid = ? WHERE id = ?')
+            ->execute([$total, $dueDate, $paid, $invId]);
     }
 }
 
@@ -87,6 +97,20 @@ for ($m = 0; $m < 12; $m++) {
         $cat = $expenseCats[$rand(0, count($expenseCats)-1)];
         $txnStmt->execute(['expense', $cat, $rand(1000, 25000), "$year-$mm-$day", 'مصروف ' . $cat]);
     }
+}
+
+// monthly sales targets (derived from actuals, mix above/below target)
+$targetStmt = $db->prepare('INSERT INTO targets (period, sales_target) VALUES (?,?)');
+$actualStmt = $db->prepare("SELECT COALESCE(SUM(total), 0) FROM sales_invoices WHERE substr(invoice_date, 1, 7) = ?");
+for ($m = 0; $m < 12; $m++) {
+    $year = 2025 + intdiv(6 + $m, 12);
+    $month = ((6 + $m) % 12) + 1;
+    $mm = str_pad((string) $month, 2, '0', STR_PAD_LEFT);
+    $period = "$year-$mm";
+    $actualStmt->execute([$period]);
+    $actual = (float) $actualStmt->fetchColumn();
+    $salesTarget = round($actual * ((85 + $rand(0, 30)) / 100));
+    $targetStmt->execute([$period, $salesTarget]);
 }
 
 echo "Seed complete.\n";

@@ -20,4 +20,13 @@ $bad = (int) $db->query(
 )->fetchColumn();
 assert($bad === 0, 'invoice totals must equal sum of items');
 
+$cols = array_column($db->query("PRAGMA table_info(sales_invoices)")->fetchAll(), 'name');
+assert(in_array('due_date', $cols, true) && in_array('amount_paid', $cols, true), 'invoice payment columns exist');
+$bad = (int) $db->query("SELECT COUNT(*) FROM sales_invoices WHERE amount_paid < 0 OR amount_paid > total + 0.01")->fetchColumn();
+assert($bad === 0, 'amount_paid within [0,total]');
+$targets = (int) $db->query("SELECT COUNT(*) FROM targets")->fetchColumn();
+assert($targets >= 12, 'targets seeded');
+$unpaid = (int) $db->query("SELECT COUNT(*) FROM sales_invoices WHERE amount_paid < total")->fetchColumn();
+assert($unpaid > 0, 'some invoices have outstanding balance');
+
 echo "seed_test OK\n";
