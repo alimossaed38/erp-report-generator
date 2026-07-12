@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - PHP binary: `C:\wamp64\bin\php\php8.3.28\php.exe` (no global `php` on PATH — always use full path).
-- Serve with: `"C:/wamp64/bin/php/php8.3.28/php.exe" -S 127.0.0.1:8010 -t public`.
+- Serve with: `"C:/wamp64/bin/php/php8.3.28/php.exe" -S 127.0.0.1:8010 -t public public/index.php` (the trailing `public/index.php` router script is REQUIRED — without it the built-in server returns 404 for `/assets/*` since assets live outside the docroot).
 - No Composer, no frameworks, no server-side third-party libs. Front-end CDN (Chart.js, font) is allowed.
 - All UI in Arabic, `dir="rtl"`, `lang="ar"`, UTF-8 everywhere.
 - Currency display: Saudi Riyal, format `#,##0` + " ر.س".

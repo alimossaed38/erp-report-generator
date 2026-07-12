@@ -6,8 +6,8 @@
 ```bash
 # 1) توليد قاعدة البيانات والبيانات التجريبية
 "C:/wamp64/bin/php/php8.3.28/php.exe" database/seed.php
-# 2) تشغيل الخادم
-"C:/wamp64/bin/php/php8.3.28/php.exe" -S 127.0.0.1:8010 -t public
+# 2) تشغيل الخادم (مرّر public/index.php كموجّه حتى تُخدَم أصول /assets عبر الـ Front Controller)
+"C:/wamp64/bin/php/php8.3.28/php.exe" -S 127.0.0.1:8010 -t public public/index.php
 # 3) افتح
 http://127.0.0.1:8010/
 ```
