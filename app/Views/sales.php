@@ -36,11 +36,22 @@ $topMax = !empty($top) ? max(array_column($top, 'revenue')) : 1;
     </div>
 </div>
 
-<section class="metric-grid metric-grid-4">
+<section class="metric-grid metric-grid-6">
     <article class="metric-card accent-blue"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('sales') ?></span><?php if ($previousSummary): ?><span class="metric-trend <?= ($change('total') ?? 0) >= 0 ? 'up' : 'down' ?>"><?= Ui::percent($change('total')) ?></span><?php endif; ?></div><span class="metric-label">إجمالي المبيعات</span><strong><?= Ui::money($summary['total']) ?></strong><small><?= $previousSummary ? 'مقارنة بالفترة السابقة' : 'إجمالي الفترة الحالية' ?></small></article>
     <article class="metric-card accent-violet"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('receipt') ?></span><?php if ($previousSummary): ?><span class="metric-trend <?= ($change('count') ?? 0) >= 0 ? 'up' : 'down' ?>"><?= Ui::percent($change('count')) ?></span><?php endif; ?></div><span class="metric-label">عدد الفواتير</span><strong><?= Ui::number($summary['count']) ?></strong><small>متوسط <?= Ui::money($summary['avg']) ?> للفاتورة</small></article>
     <article class="metric-card accent-green"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('users') ?></span><span class="metric-mini">عملاء فريدون</span></div><span class="metric-label">عدد العملاء</span><strong><?= Ui::number($summary['customers']) ?></strong><small>ضمن نتائج البحث والفترة</small></article>
     <article class="metric-card accent-orange"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('target') ?></span><?php if ($previousSummary): ?><span class="metric-trend <?= ($change('avg') ?? 0) >= 0 ? 'up' : 'down' ?>"><?= Ui::percent($change('avg')) ?></span><?php endif; ?></div><span class="metric-label">متوسط قيمة الفاتورة</span><strong><?= Ui::money($summary['avg']) ?></strong><small>مؤشر جودة السلة البيعية</small></article>
+    <article class="metric-card accent-green"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('finance') ?></span><span class="metric-mini">التكلفة مطروحة</span></div><span class="metric-label">صافي الربح</span><strong><?= Ui::money($margin['profit']) ?></strong><small>الإيرادات - تكلفة البضاعة المباعة</small></article>
+    <article class="metric-card accent-blue"><div class="metric-top"><span class="metric-icon"><?= Ui::icon('finance') ?></span><span class="metric-mini">هامش الربح</span></div><span class="metric-label">نسبة الهامش</span><strong><?= Ui::percent($margin['margin_pct']) ?></strong><small>الربح ÷ الإيرادات</small></article>
+</section>
+
+<section class="panel">
+    <div class="panel-head"><div><span class="panel-kicker">الأداء مقابل الخطة</span><h2>تقدّم هدف المبيعات</h2></div></div>
+    <div class="target-progress">
+        <div class="target-progress-head"><span>نسبة الإنجاز</span><strong><?= Ui::percent($target['pct']) ?></strong></div>
+        <div class="progress<?= ($target['pct'] !== null && $target['pct'] < 60) ? ' danger' : '' ?>"><i style="width:<?= $target['pct'] !== null ? min(100, max(0, $target['pct'])) : 0 ?>%"></i></div>
+        <div class="target-progress-foot"><span>الفعلي: <?= Ui::money($target['actual']) ?></span><span>الهدف: <?= $target['target'] !== null ? Ui::money($target['target']) : '—' ?></span></div>
+    </div>
 </section>
 
 <section class="two-column-grid wide-first">
@@ -58,7 +69,7 @@ $topMax = !empty($top) ? max(array_column($top, 'revenue')) : 1;
     <div class="panel-head"><div><span class="panel-kicker">سجل المبيعات</span><h2>الفواتير</h2></div><span class="table-count"><?= Ui::number($pagination['total']) ?> سجل</span></div>
     <?php if ($invoices): ?>
         <div class="table-wrap"><table class="data-table"><thead><tr><th><?= $sortLink('invoice_no', 'رقم الفاتورة') ?></th><th><?= $sortLink('customer', 'العميل') ?></th><th><?= $sortLink('invoice_date', 'التاريخ') ?></th><th><?= $sortLink('total', 'الإجمالي') ?></th><th>الحالة</th></tr></thead><tbody>
-        <?php foreach ($invoices as $invoice): ?><tr><td><span class="code-cell"><?= Ui::e($invoice['invoice_no']) ?></span></td><td><strong><?= Ui::e($invoice['customer_name']) ?></strong></td><td><?= Ui::e($invoice['invoice_date']) ?></td><td class="money-cell"><?= Ui::money($invoice['total']) ?></td><td><span class="badge success"><i></i> مكتملة</span></td></tr><?php endforeach; ?>
+        <?php foreach ($invoices as $invoice): ?><tr><td><span class="code-cell"><?= Ui::e($invoice['invoice_no']) ?></span></td><td><strong><a href="<?= Ui::e(Ui::url('/customers/view', ['name' => $invoice['customer_name']])) ?>"><?= Ui::e($invoice['customer_name']) ?></a></strong></td><td><?= Ui::e($invoice['invoice_date']) ?></td><td class="money-cell"><?= Ui::money($invoice['total']) ?></td><td><span class="badge success"><i></i> مكتملة</span></td></tr><?php endforeach; ?>
         </tbody></table></div>
         <?php $baseParams = $params; require __DIR__ . '/partials/pagination.php'; ?>
     <?php else: ?><div class="empty-state"><?= Ui::icon('search', 30) ?><strong>لا توجد فواتير مطابقة</strong><span>جرّب تغيير الفترة أو إزالة كلمة البحث.</span></div><?php endif; ?>

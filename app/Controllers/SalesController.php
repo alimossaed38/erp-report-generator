@@ -19,6 +19,8 @@ final class SalesController extends Controller
             ? $repo->summary($previousFrom, $previousTo)
             : null;
         $bounds = $repo->dateBounds();
+        $margin = $repo->marginSummary($from, $to, $search);
+        $target = Analytics::targetProgress($summary['total'], (new TargetRepository())->range($from, $to));
 
         $this->render('sales', [
             'title' => 'تحليل المبيعات',
@@ -38,6 +40,8 @@ final class SalesController extends Controller
             'pagination' => $pageData['pagination'],
             'quickRanges' => Report::quickRanges($bounds['max']),
             'bounds' => $bounds,
+            'margin' => $margin,
+            'target' => $target,
         ]);
     }
 }

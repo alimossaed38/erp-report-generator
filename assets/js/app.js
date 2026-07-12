@@ -173,6 +173,7 @@
   };
 
   Chart.prototype.drawLine = function (box) {
+    if (this.data.length && this.data[0] && this.data[0].series) return this.drawMultiLine(box);
     var ctx = this.ctx;
     var colors = box.colors;
     var values = this.data.map(function (item) { return Number(item.value) || 0; });
@@ -209,6 +210,80 @@
       ctx.fillStyle = colors.muted;
       ctx.textAlign = 'center';
       ctx.fillText(shortLabel(self.data[index].label), point.x, box.height - 16);
+    });
+  };
+
+  Chart.prototype.drawMultiLine = function (box) {
+    var ctx = this.ctx;
+    var colors = box.colors;
+    var self = this;
+    var keys = Object.keys(this.data[0].series);
+    var all = [];
+    this.data.forEach(function (item) {
+      keys.forEach(function (key) {
+        var v = item.series[key];
+        if (v !== null && v !== undefined) all.push(Number(v) || 0);
+      });
+    });
+    var max = Math.max.apply(Math, all.concat([1])) * 1.12;
+    var plot = this.axes(box, max, 55, 15, 13, 37);
+    var step = this.data.length > 1 ? plot.width / (this.data.length - 1) : plot.width;
+    var seriesColors = [colors.primary, colors.orange, colors.violet];
+
+    keys.forEach(function (key, keyIndex) {
+      var raw = self.data.map(function (item) {
+        var v = item.series[key];
+        return (v === null || v === undefined) ? null : (Number(v) || 0);
+      });
+      var points = raw.map(function (value, index) {
+        if (value === null) return null;
+        return { x: plot.x + (self.data.length > 1 ? index * step : plot.width / 2), y: plot.y + plot.height - (value / max) * plot.height, value: value };
+      });
+
+      if (keyIndex === 0) {
+        var solid = points.filter(function (p) { return p; });
+        if (solid.length) {
+          var gradient = ctx.createLinearGradient(0, plot.y, 0, plot.y + plot.height);
+          gradient.addColorStop(0, rgba(colors.primary, .28));
+          gradient.addColorStop(1, rgba(colors.primary, .015));
+          ctx.beginPath();
+          ctx.moveTo(solid[0].x, plot.y + plot.height);
+          solid.forEach(function (point) { ctx.lineTo(point.x, point.y); });
+          ctx.lineTo(solid[solid.length - 1].x, plot.y + plot.height);
+          ctx.closePath();
+          ctx.fillStyle = gradient;
+          ctx.fill();
+        }
+      }
+
+      var color = seriesColors[keyIndex % seriesColors.length];
+      ctx.beginPath();
+      var started = false;
+      points.forEach(function (point) {
+        if (!point) { started = false; return; }
+        if (!started) { ctx.moveTo(point.x, point.y); started = true; }
+        else { ctx.lineTo(point.x, point.y); }
+      });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = keyIndex === 0 ? 2.5 : 2;
+      ctx.lineJoin = 'round';
+      if (keyIndex > 0) ctx.setLineDash([5, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      points.forEach(function (point, index) {
+        if (!point) return;
+        ctx.beginPath(); ctx.arc(point.x, point.y, 3.5, 0, Math.PI * 2); ctx.fillStyle = colors.surface; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = color; ctx.stroke();
+        self.hits.push({ x: point.x - 9, y: point.y - 9, w: 18, h: 18, label: self.data[index].label, value: point.value, series: key });
+      });
+    });
+
+    this.data.forEach(function (item, index) {
+      var x = plot.x + (self.data.length > 1 ? index * step : plot.width / 2);
+      ctx.fillStyle = colors.muted;
+      ctx.textAlign = 'center';
+      ctx.fillText(shortLabel(item.label), x, box.height - 16);
     });
   };
 
