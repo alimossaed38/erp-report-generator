@@ -10,6 +10,9 @@ class ExportController extends Controller
         $to = Request::get('to');
         $category = Request::get('category');
 
+        $report = in_array($report, ['sales','inventory','finance'], true) ? $report : 'sales';
+        $format = $format === 'xls' ? 'xls' : 'csv';
+
         [$headers, $rows] = $this->dataset($report, $from, $to, $category);
         $filename = $report . '-report.' . ($format === 'xls' ? 'xls' : 'csv');
 
@@ -51,8 +54,17 @@ class ExportController extends Controller
         echo "\xEF\xBB\xBF"; // UTF-8 BOM so Excel reads Arabic
         $out = fopen('php://output', 'w');
         fputcsv($out, $headers);
-        foreach ($rows as $r) { fputcsv($out, $r); }
+        foreach ($rows as $r) { fputcsv($out, array_map([$this, 'csvSafe'], $r)); }
         fclose($out);
+    }
+
+    private function csvSafe($value): string
+    {
+        $s = (string)$value;
+        if ($s !== '' && in_array($s[0], ['=', '+', '-', '@'], true)) {
+            $s = "'" . $s;
+        }
+        return $s;
     }
 
     private function xls(array $headers, array $rows, string $filename): void

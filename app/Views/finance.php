@@ -1,6 +1,5 @@
 <?php
 /** @var array $summary @var array $monthly @var array $transactions */
-$fmt = fn($n) => number_format((float)$n, 0) . ' ر.س';
 ?>
 <form method="get" class="filters">
     <label>من: <input type="date" name="from" value="<?= htmlspecialchars($from ?? '') ?>"></label>
@@ -12,15 +11,15 @@ $fmt = fn($n) => number_format((float)$n, 0) . ' ر.س';
 </form>
 
 <section class="kpis">
-    <div class="kpi good"><span class="kpi-label">الإيرادات</span><span class="kpi-value"><?= $fmt($summary['income']) ?></span></div>
-    <div class="kpi bad"><span class="kpi-label">المصروفات</span><span class="kpi-value"><?= $fmt($summary['expense']) ?></span></div>
-    <div class="kpi <?= $summary['net']>=0?'good':'bad' ?>"><span class="kpi-label">صافي الربح</span><span class="kpi-value"><?= $fmt($summary['net']) ?></span></div>
+    <div class="kpi good"><span class="kpi-label">الإيرادات</span><span class="kpi-value"><?= money($summary['income']) ?></span></div>
+    <div class="kpi bad"><span class="kpi-label">المصروفات</span><span class="kpi-value"><?= money($summary['expense']) ?></span></div>
+    <div class="kpi <?= $summary['net']>=0?'good':'bad' ?>"><span class="kpi-label">صافي الربح</span><span class="kpi-value"><?= money($summary['net']) ?></span></div>
 </section>
 
 <section class="card">
     <h2>الإيرادات مقابل المصروفات (شهرياً)</h2>
     <canvas id="finChart" data-type="bar"
-      data-values='<?= json_encode(array_map(fn($m)=>["label"=>$m["ym"],"series"=>$m["series"]], $monthly), JSON_UNESCAPED_UNICODE) ?>'></canvas>
+      data-values='<?= json_encode(array_map(fn($m)=>["label"=>$m["ym"],"series"=>$m["series"]], $monthly), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG) ?>'></canvas>
 </section>
 
 <section class="card">
@@ -33,7 +32,7 @@ $fmt = fn($n) => number_format((float)$n, 0) . ' ر.س';
                 <td><?= htmlspecialchars($t['txn_date']) ?></td>
                 <td><span class="badge <?= $t['type']==='income'?'ok':'low' ?>"><?= $t['type']==='income'?'إيراد':'مصروف' ?></span></td>
                 <td><?= htmlspecialchars($t['category']) ?></td>
-                <td><?= $fmt($t['amount']) ?></td>
+                <td><?= money($t['amount']) ?></td>
                 <td><?= htmlspecialchars($t['description']) ?></td>
             </tr>
         <?php endforeach; ?>

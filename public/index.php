@@ -25,6 +25,7 @@ require __DIR__ . '/../app/Core/Router.php';
 require __DIR__ . '/../app/Core/Controller.php';
 require __DIR__ . '/../app/Core/Database.php';
 require __DIR__ . '/../app/Core/Request.php';
+require __DIR__ . '/../app/Core/helpers.php';
 
 $router = new Router();
 $router->add('/', [DashboardController::class, 'index']);
@@ -33,4 +34,15 @@ $router->add('/inventory', [InventoryController::class, 'index']);
 $router->add('/finance', [FinanceController::class, 'index']);
 $router->add('/export', [ExportController::class, 'index']);
 
-$router->dispatch($_SERVER['REQUEST_URI'] ?? '/');
+try {
+    $router->dispatch($_SERVER['REQUEST_URI'] ?? '/');
+} catch (Throwable $e) {
+    error_log($e->getMessage());
+    http_response_code(500);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html lang="ar" dir="rtl"><meta charset="utf-8">'
+       . '<body style="font-family:sans-serif;padding:40px;text-align:center">'
+       . '<h1>خطأ داخلي في الخادم</h1>'
+       . '<p>تأكد من توليد قاعدة البيانات أولاً: <code>php database/seed.php</code></p>'
+       . '</body></html>';
+}

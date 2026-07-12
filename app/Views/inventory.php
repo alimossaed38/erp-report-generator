@@ -1,6 +1,5 @@
 <?php
 /** @var array $summary @var array $products @var array $byCategory @var array $categories */
-$fmt = fn($n) => number_format((float)$n, 0) . ' ر.س';
 ?>
 <form method="get" class="filters">
     <label>التصنيف:
@@ -19,14 +18,14 @@ $fmt = fn($n) => number_format((float)$n, 0) . ' ر.س';
 
 <section class="kpis">
     <div class="kpi"><span class="kpi-label">إجمالي الأصناف</span><span class="kpi-value"><?= (int)$summary['items'] ?></span></div>
-    <div class="kpi"><span class="kpi-label">قيمة المخزون</span><span class="kpi-value"><?= $fmt($summary['value']) ?></span></div>
+    <div class="kpi"><span class="kpi-label">قيمة المخزون</span><span class="kpi-value"><?= money($summary['value']) ?></span></div>
     <div class="kpi <?= $summary['low']>0?'bad':'good' ?>"><span class="kpi-label">أصناف ناقصة</span><span class="kpi-value"><?= (int)$summary['low'] ?></span></div>
 </section>
 
 <section class="card">
     <h2>قيمة المخزون حسب التصنيف</h2>
     <canvas id="invChart" data-type="bar" data-label="القيمة"
-      data-values='<?= json_encode(array_map(fn($r)=>["label"=>$r["category"],"value"=>$r["value"]], $byCategory), JSON_UNESCAPED_UNICODE) ?>'></canvas>
+      data-values='<?= json_encode(array_map(fn($r)=>["label"=>$r["category"],"value"=>$r["value"]], $byCategory), JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG) ?>'></canvas>
 </section>
 
 <section class="card">
@@ -40,7 +39,7 @@ $fmt = fn($n) => number_format((float)$n, 0) . ' ر.س';
                 <td><?= htmlspecialchars($p['category']) ?></td>
                 <td><?= (int)$p['stock_qty'] ?></td>
                 <td><?= (int)$p['reorder_level'] ?></td>
-                <td><?= $fmt($p['price']) ?></td>
+                <td><?= money($p['price']) ?></td>
                 <td><span class="badge <?= $p['low']?'low':'ok' ?>"><?= $p['low']?'ناقص':'متوفر' ?></span></td>
             </tr>
         <?php endforeach; ?>
