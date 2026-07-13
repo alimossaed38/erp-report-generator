@@ -61,6 +61,9 @@ final class Ui
             'chevron-right' => '<path d="m9 18 6-6-6-6"/>',
             'info' => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
             'target' => '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+            'chat' => '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/><path d="M8 9h8M8 13h5"/>',
+            'send' => '<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/>',
+            'close' => '<path d="M18 6 6 18M6 6l12 12"/>',
         ];
         $body = $paths[$name] ?? $paths['info'];
         return '<svg aria-hidden="true" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' . $body . '</svg>';

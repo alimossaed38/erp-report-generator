@@ -120,6 +120,28 @@ $navItems = [
         </footer>
     </div>
 </div>
+
+<div class="assistant" data-assistant>
+    <button type="button" class="assistant-fab" data-assistant-toggle aria-expanded="false" aria-label="مساعد التقارير">
+        <?= Ui::icon('chat', 24) ?>
+    </button>
+    <section class="assistant-panel" data-assistant-panel hidden aria-label="مساعد التقارير">
+        <header class="assistant-head">
+            <div class="assistant-head-title">
+                <?= Ui::icon('chat', 20) ?>
+                <div><strong>مساعد التقارير</strong><small>اكتب طلبك بالعربي</small></div>
+            </div>
+            <button type="button" class="icon-button" data-assistant-close aria-label="إغلاق المساعد"><?= Ui::icon('close', 18) ?></button>
+        </header>
+        <div class="assistant-log" data-assistant-log aria-live="polite"></div>
+        <form class="assistant-form" data-assistant-form autocomplete="off">
+            <input type="text" class="assistant-input" data-assistant-input maxlength="200"
+                   placeholder="مثال: مبيعات آخر ٩٠ يوم" aria-label="طلبك">
+            <button type="submit" class="assistant-send" aria-label="إرسال"><?= Ui::icon('send', 18) ?></button>
+        </form>
+    </section>
+</div>
+
 <script src="/assets/js/app.js"></script>
 </body>
 </html>

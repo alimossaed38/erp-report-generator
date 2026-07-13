@@ -420,4 +420,172 @@
   document.querySelectorAll('canvas[data-chart][data-values]').forEach(function (canvas) {
     new Chart(canvas);
   });
+
+  /* ===== Report assistant widget ===== */
+  (function () {
+    var host = document.querySelector('[data-assistant]');
+    if (!host) return;
+
+    var toggle = host.querySelector('[data-assistant-toggle]');
+    var panel = host.querySelector('[data-assistant-panel]');
+    var closeBtn = host.querySelector('[data-assistant-close]');
+    var form = host.querySelector('[data-assistant-form]');
+    var input = host.querySelector('[data-assistant-input]');
+    var log = host.querySelector('[data-assistant-log]');
+    var send = form.querySelector('.assistant-send');
+    var greeted = false;
+
+    var WELCOME = [
+      'مبيعات آخر ٩٠ يوم',
+      'أعلى ٥ منتجات مبيعًا',
+      'الذمم المتأخرة',
+      'الأصناف النافدة',
+      'مصروفات هذا الشهر',
+      'أكثر ١٠ عملاء إنفاقًا'
+    ];
+
+    function el(tag, className, text) {
+      var node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text != null) node.textContent = text;
+      return node;
+    }
+
+    function scrollDown() { log.scrollTop = log.scrollHeight; }
+
+    function open() {
+      panel.hidden = false;
+      toggle.setAttribute('aria-expanded', 'true');
+      if (!greeted) { greeted = true; greet(); }
+      input.focus();
+    }
+    function close() {
+      panel.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function chips(container, items) {
+      var wrap = el('div', 'assistant-chips');
+      items.forEach(function (text) {
+        var chip = el('button', 'assistant-chip', text);
+        chip.type = 'button';
+        chip.addEventListener('click', function () { input.value = text; submit(text); });
+        wrap.appendChild(chip);
+      });
+      container.appendChild(wrap);
+    }
+
+    function greet() {
+      var card = el('div', 'assistant-card');
+      card.appendChild(el('div', null, 'اكتب طلبك بالعربي وسأجلب لك التقرير المناسب. جرّب:'));
+      chips(card, WELCOME);
+      log.appendChild(card);
+      scrollDown();
+    }
+
+    function addUser(text) {
+      log.appendChild(el('div', 'assistant-msg is-user', text));
+      scrollDown();
+    }
+
+    function renderResult(data) {
+      var card = el('div', 'assistant-card');
+
+      if (!data || data.ok !== true) {
+        card.appendChild(el('div', null, (data && data.message) || 'تعذّر تنفيذ الطلب.'));
+        if (data && data.suggestions && data.suggestions.length) chips(card, data.suggestions);
+        log.appendChild(card);
+        scrollDown();
+        return;
+      }
+
+      var understood = el('div', 'assistant-understood');
+      understood.appendChild(el('strong', null, 'فهمت طلبك: '));
+      understood.appendChild(document.createTextNode(data.understood || ''));
+      card.appendChild(understood);
+
+      if (data.kpis && data.kpis.length) {
+        var grid = el('div', 'assistant-kpis');
+        data.kpis.forEach(function (k) {
+          var box = el('div', 'assistant-kpi');
+          box.appendChild(el('small', null, k.label));
+          box.appendChild(el('strong', null, k.value));
+          grid.appendChild(box);
+        });
+        card.appendChild(grid);
+      }
+
+      if (data.table && data.table.columns) {
+        if (data.table.rows && data.table.rows.length) {
+          var wrap = el('div', 'assistant-table-wrap');
+          var table = el('table', 'assistant-table');
+          var thead = el('thead');
+          var htr = el('tr');
+          data.table.columns.forEach(function (c) { htr.appendChild(el('th', null, c)); });
+          thead.appendChild(htr);
+          table.appendChild(thead);
+          var tbody = el('tbody');
+          data.table.rows.forEach(function (row) {
+            var tr = el('tr');
+            row.forEach(function (cell) { tr.appendChild(el('td', null, cell)); });
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody);
+          wrap.appendChild(table);
+          card.appendChild(wrap);
+        } else {
+          card.appendChild(el('div', 'assistant-empty', 'لا توجد بيانات مطابقة.'));
+        }
+      }
+
+      var actions = el('div', 'assistant-actions');
+      if (data.reportUrl) {
+        var openLink = el('a', 'assistant-action', 'افتح التقرير كامل');
+        openLink.setAttribute('href', data.reportUrl);
+        actions.appendChild(openLink);
+      }
+      if (data.exportUrl) {
+        var exportLink = el('a', 'assistant-action', 'تصدير');
+        exportLink.setAttribute('href', data.exportUrl);
+        actions.appendChild(exportLink);
+      }
+      if (actions.childNodes.length) card.appendChild(actions);
+
+      log.appendChild(card);
+      scrollDown();
+    }
+
+    function submit(q) {
+      var query = (q != null ? q : input.value).trim();
+      if (!query) return;
+      addUser(query);
+      input.value = '';
+      send.disabled = true;
+
+      var loading = el('div', 'assistant-msg assistant-loading', 'جارٍ البحث…');
+      log.appendChild(loading);
+      scrollDown();
+
+      fetch('/assistant/ask?q=' + encodeURIComponent(query), { headers: { 'Accept': 'application/json' } })
+        .then(function (res) { return res.json(); })
+        .then(function (data) { log.removeChild(loading); renderResult(data); })
+        .catch(function () {
+          log.removeChild(loading);
+          var card = el('div', 'assistant-card');
+          card.appendChild(el('div', null, 'تعذّر الاتصال بالمساعد. حاول مرة أخرى.'));
+          log.appendChild(card);
+          scrollDown();
+        })
+        .then(function () { send.disabled = false; input.focus(); });
+    }
+
+    toggle.addEventListener('click', function () {
+      if (panel.hidden) open(); else close();
+    });
+    closeBtn.addEventListener('click', close);
+    form.addEventListener('submit', function (event) { event.preventDefault(); submit(); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !panel.hidden) close();
+    });
+  })();
 })();

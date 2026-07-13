@@ -54,5 +54,6 @@ $router->add('/customers/view', [CustomersController::class, 'view']);
 $router->add('/aging', [AgingController::class, 'index']);
 $router->add('/products/view', [ProductController::class, 'view']);
 $router->add('/invoices/view', [InvoiceController::class, 'view']);
+$router->add('/assistant/ask', [AssistantController::class, 'ask']);
 
 $router->dispatch($_SERVER['REQUEST_URI'] ?? '/');
